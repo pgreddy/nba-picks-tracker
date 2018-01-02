@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <style type="text/css">
+    #picker {
+      height: 400px;
+    }
+  </style>
+</head>
+<body>
+  <% if (typeof error != 'undefined') { %>
+    <font color='red'>Error: <%= error%></font>
+  <% } %>
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/">Country Comparison</a>
+      </div>
+      <ul class="nav navbar-nav">
+        <li><a href="/scatter">Scatter Plots</a></li>
+        <li><a href="/multiple_select">Feature Comparison Plots</a></li>
+        <li><a href="/home">Personal Page</a></li>
+      </ul>
+    </div>
+  </nav>  <div class="container">
+    <div class="row">
+      <h1>Signup</h1>
+      <hr>
+      <form action="/createaccount" method="post">
+        <p>Username:</p>
+        <input type="text" name="username" required=true>
+        <p>Password:</p>
+        <input type="text" name="password" required=true>
+        <p></p>
+        <p>Favorite Countries:</p>
+        <select multiple id="picker" class="selectpicker" data-style="btn-info" name="countries" required=true>
+            <option value="">Select Country</option>
+            <% countries.forEach(function(row){ %>
+              <option value="<%= row.country %>"><%= row.country %></option>
+            <% }) %>
+        </select><br><br>
+        <input type="submit" value="Submit" class="btn btn-primary">
+      </form>
+      <h5><a href="/">Go Home</a></h5>
+    </div>
+  </div>
+</body>
+</html>

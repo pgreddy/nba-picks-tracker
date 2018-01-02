@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/">Country Comparison</a>
+      </div>
+      <ul class="nav navbar-nav">
+        <li><a href="/scatter">Scatter Plots</a></li>
+        <li><a href="/multiple_select">Feature Comparison Plots</a></li>
+        <li><a href="/home">Personal Page</a></li>
+      </ul>
+    </div>
+  </nav>
+  <div class="container">
+    <div class="row">
+      <h1>Welcome, <%= username %></h1>
+      <hr>  
+      <h3>You indicated an interest in <%=countries[Math.floor(Math.random() * (countries.length - 1))]%>! Learn more below:</h3>
+      <h5>Go to <a href="/scatter">Scatter Plots</a></h5>
+      <h5>Go to <a href="/multiple_select">Bar Charts</a></h5>
+      <h3>Your stored plots:</h3>
+      <% for (var i = 0; i < stored.length; i++) { %>
+        <p><%= i+1 %>. <%= stored[i] %> </p>
+      <% } %>
+      <a class="btn btn-primary" href="/logout">Logout</a><br>
+      <h5><a href="/">Go Home</a></h5>  
+    </div>
+  </div>
+</body>
+</html>
