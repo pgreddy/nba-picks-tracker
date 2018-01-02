@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.js"></script>
+  <script>
+    <%var columns_inequality = ["gini", "top_20_inc_share", "bot_20_inc_share", "num_of_poor"];%>
+    <%var columns_jobs = ["self_employed_proportion", "total_employment", "unemployment_rate", "salaried_workers"];%>
+    <%var columns_population = ["life_expectancy", "total_population", "urban_population", "rural_population"];%>
+    <%var columns_social_usage = ["electricity_access", "fertility_rate", "literacy_rate", "cellular_subscriptions", "internet_usage"];%>
+    <%var columns_fifa = ["population_share", "tv_audience_share", "gdp_weighted_share"];%>
+    $(document).ready(function () {
+      var columns_inequality_length = <%-columns_inequality.length%>;
+      var columns_jobs_length = <%-columns_jobs.length%>;
+      var columns_population_length = <%-columns_population.length%>;
+      var columns_social_usage_length = <%-columns_social_usage.length%>;
+      var columns_fifa_length = <%-columns_fifa.length%>;
+      var num_charts = undefined;
+        $("#button1").click(function(e) {
+            var output = {
+              countries: $('#picker').val(),
+              columns: []
+            };
+            for (var i = 0; i < columns_inequality_length; i++) {
+                if (document.getElementById("inequality" + i).checked) {
+                  output.columns.push(document.getElementById("inequality" + i).value);
+                }
+            }
+            for (var i = 0; i < columns_jobs_length; i++) {
+                if (document.getElementById("jobs" + i).checked) {
+                  output.columns.push(document.getElementById("jobs" + i).value);
+                }
+            }
+            for (var i = 0; i < columns_population_length; i++) {
+                if (document.getElementById("population" + i).checked) {
+                  output.columns.push(document.getElementById("population" + i).value);
+                }
+            }
+            for (var i = 0; i < columns_social_usage_length; i++) {
+                if (document.getElementById("social_usage" + i).checked) {
+                  output.columns.push(document.getElementById("social_usage" + i).value);
+                }
+            }
+            for (var i = 0; i < columns_fifa_length; i++) {
+                if (document.getElementById("fifa" + i).checked) {
+                  output.columns.push(document.getElementById("fifa" + i).value);
+                }
+            }
+            num_charts = output.columns.length;
+            if (output.countries == null || output.countries.length == 0) {
+                alert("Please choose at least 1 country and 1 variable.");
+            }
+            else if (output.columns.length == 0) {
+                alert("Please choose at least 1 country and 1 variable.");
+            }
+            else {
+                var n1 = window.performance.now();
+                $.post("/multiple_post", output,
+                    function (data, status) {
+                        var n2 = window.performance.now();
+                        document.getElementById('time').innerHTML = "Query took " + (n2-n1) + " milliseconds.";
+                        draw_charts(data.data, JSON.parse(data.avg));
+                    });
+            }
+        });
+      });
+      var draw_charts = function (data, avg) {
+        if (typeof num_charts != "undefined") {
+            for (var i=0; i < num_charts; i++) {
+                document.getElementById("chart" + i).remove();
+            }
+        }
+        num_charts = Object.keys(data[0]).length - 1;
+        var countries = [];
+        var columns = [];
+        var values = [];
+        for (var key in data[0]) {
+            if (key != 'country') {
+                columns.push(key);
+                values[key] = [];
+            }
+        }
+        var country = "";
+        var error_msg = "";
+        for (var i = 0; i < data.length; i++) {
+            countries.push(data[i].country);
+            for (var key in data[0]) {
+                if (key != 'country') {
+                    if (data[i][key] == -1) {
+                        values[key].push(0);
+                        error_msg += "<font color='blue'>" + pretty_column_names[key] + " is not available for " + country + "</font><br>"
+                    } else {
+                        values[key].push(data[i][key]);
+                    }
+                } else {
+                    country = data[i][key];
+                }
+            }
+        }
+        countries.push("Average");
+        document.getElementById("error").innerHTML = error_msg;
+        for (var i = 0; i < num_charts; i++) {
+            var canvas = document.createElement('canvas');
+            canvas.id = 'chart' + i;
+            document.getElementById('error').appendChild(canvas);
+            var ctx = document.getElementById("chart" + i);
+            values[columns[i]].push(avg[columns[i]]);
+            var myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: countries,
+                    datasets: [{
+                        label: columns[i],
+                        data: values[columns[i]],
+                        backgroundColor: countryColor(countries),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                beginAtZero:true
+                            }
+                        }]
+                    },
+                    legend: {
+                      display: false
+                    },
+                    title: {
+                      display: true,
+                      text: pretty_column_names[columns[i]]
+                    },
+                }
+            });
+        }
+      };
+    var pretty_column_names = {
+        "gini": "Gini Coefficient",
+        "top_20_inc_share": "Share of Income Owned by Top 20%",
+        "bot_20_inc_share": "Share of Income Owned by Bottom 20%",
+        "num_of_poor": "Number of Poor (millions)",
+        "self_employed_proportion": "Proportion Self Employed",
+        "total_employment": "Total Number Employed",
+        "unemployment_rate": "Unemployment Rate",
+        "salaried_workers": "Wage and Salaried Workers, % of employed",
+        "life_expectancy": "Life Expectancy",
+        "total_population": "Total Population",
+        "urban_population": "Urban Population",
+        "rural_population": "Rural Population",
+        "electricity_access": "Electricity Access Rate",
+        "fertility_rate": "Fertility Rate",
+        "literacy_rate": "Literacy Rate",
+        "cellular_subscriptions": "Cellular Subscriptions",
+        "internet_usage": "Internet Usage Rate",
+        "population_share": "Proportion of Global Population",
+        "tv_audience_share": "Proportion of Global World Cup TV Audience",
+        "gdp_weighted_share": "GDP-weighted Proportion of World Cup Audience",
+        "percent": "Cousin Marriage Rate"
+    };
+    var countryColor = function(countries) {
+      var cols = new Array(0);
+      var i = 0;
+      while (countries.hasOwnProperty(i)) {
+        cols.push(stringToColor(countries[i]));
+        i = i+1;
+      }
+      return cols;
+    }
+    var stringToColor = function(str) {
+      var hash = 0;
+      for (var i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      var color = '#';
+      for (var i = 0; i < 3; i++) {
+        var value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
+      }
+      return color;
+    }
+  </script>
+  <style type="text/css">
+    #picker {
+      height: 400px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/">Country Comparison</a>
+      </div>
+      <ul class="nav navbar-nav">
+        <li><a href="/scatter">Scatter Plots</a></li>
+        <li><a href="/multiple_select">Feature Comparison Plots</a></li>
+        <li><a href="/home">Personal Page</a></li>
+      </ul>
+    </div>
+  </nav>  <div class="container">
+    <div class="row">
+      <h1>Feature Comparison Plots</h1>
+      <hr>
+    </div>
+    <div class="col-md-4">
+      <h2>Country:</h2>
+      <select multiple id="picker" class="selectpicker" data-style="btn-info" name="selectpicker">
+          <option value="">Select Country</option>
+          <% countries.forEach(function(row){ %>
+            <option value="<%= row.country %>"><%= row.country %></option>
+          <% }) %>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <%  var pretty_column_names = {
+            "gini": "Gini Coefficient",
+            "top_20_inc_share": "Share of Income Owned by Top 20%",
+            "bot_20_inc_share": "Share of Income Owned by Bottom 20%",
+            "num_of_poor": "Number of Poor (millions)",
+            "self_employed_proportion": "Proportion Self Employed",
+            "total_employment": "Total Number Employed",
+            "unemployment_rate": "Unemployment Rate",
+            "salaried_workers": "Wage and Salaried Workers, % of employed",
+            "life_expectancy": "Life Expectancy",
+            "total_population": "Total Population",
+            "urban_population": "Urban Population",
+            "rural_population": "Rural Population",
+            "electricity_access": "Electricity Access Rate",
+            "fertility_rate": "Fertility Rate",
+            "literacy_rate": "Literacy Rate",
+            "cellular_subscriptions": "Cellular Subscriptions",
+            "internet_usage": "Internet Usage Rate",
+            "population_share": "Proportion of Global Population",
+            "tv_audience_share": "Proportion of Global World Cup TV Audience",
+            "gdp_weighted_share": "GDP-weighted Proportion of World Cup Audience",
+            "percent": "Cousin Marriage Rate"
+        };
+      %>
+      <h2>Inequality</h2>
+      <% for (var i = 0; i < columns_inequality.length; i++) { %>
+        <input id="<%= 'inequality' + i %>" type="checkbox" value="<%= columns_inequality[i] %>"><%= pretty_column_names[columns_inequality[i]] %><br>
+      <% } %><br>
+      <h2>Jobs</h2>
+      <% for (var i = 0; i < columns_jobs.length; i++) { %>
+        <input id="<%= 'jobs' + i %>" type="checkbox" value="<%=columns_jobs[i] %>"><%= pretty_column_names[columns_jobs[i]] %><br>
+      <% } %><br>
+      <h2>Population</h2>
+      <% for (var i = 0; i < columns_population.length; i++) { %>
+        <input id="<%= 'population' + i %>" type="checkbox" value="<%=columns_population[i] %>"><%= pretty_column_names[columns_population[i]] %><br>
+      <% } %><br>
+    </div>
+    <div class="col-md-4">
+      <h2>Social Usage</h2>
+      <% for (var i = 0; i < columns_social_usage.length; i++) { %>
+        <input id="<%= 'social_usage' + i %>" type="checkbox" value="<%=columns_social_usage[i] %>"><%= pretty_column_names[columns_social_usage[i]] %><br>
+      <% } %><br>
+      <h2>Fifa</h2>
+      <% for (var i = 0; i < columns_fifa.length; i++) { %>
+        <input id="<%= 'fifa' + i %>" type="checkbox" value="<%=columns_fifa[i] %>"><%= pretty_column_names[columns_fifa[i]] %><br>
+      <% } %><br>
+    </div>
+    <div class="row">
+      <input id="button1" class="btn btn-primary" type="button" value="Submit" />
+      <% if (typeof num_charts != 'undefined') { %>
+        <% for (var i = 0; i < num_charts.length; i++) { %>
+          <canvas id="<%= 'chart' + i %>" width="400" height="400"></canvas>
+        <% } %><br>
+      <% } %>
+      <h5 id = "time"></h5>
+      <h5><a href="/">Go Home</a></h5>
+      <h5><a href="/home">Go to your Personal Page</a></h5>
+    </div>
+    <hr>
+    <div class="row">
+      <div id=error></div>
+    </div>
+  </div>
+</body>
+</html>

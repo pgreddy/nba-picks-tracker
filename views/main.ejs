@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <title>Login</title>
+   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <script>
+      $(document).ready(function () {
+           $("#import_button").click(function(e) {
+               $.get("/import",function (data, status) {
+                       if (data!="Success") {
+                         alert(data);
+                       }
+                   });
+           });
+       });
+   </script>
+</head>
+<body>
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/">Country Comparison</a>
+      </div>
+      <ul class="nav navbar-nav">
+        <li><a href="/scatter">Scatter Plots</a></li>
+        <li><a href="/multiple_select">Feature Comparison Plots</a></li>
+        <li><a href="/home">Personal Page</a></li>
+      </ul>
+    </div>
+  </nav>
+  <div class="container">
+    <div class="row">
+      <% if (typeof error != 'undefined') { %>
+          <font color='red'>Error: <%= error%></font>
+      <% } %>
+      <h1>Country Comparison App</h1>
+      <h2>CIS 450 Final Project</h2>
+      <hr>
+      <h3>Welcome to the Country Comparison App! Here are some things you can do:</h3>
+      <h4>Check out the <a href="/scatter">correlation plots</a></h4>
+      <h4>Check out the <a href="/multiple_select">feature comparison plots</a></h4>
+      <h4>If you're already logged in, check out your <a href="/home">personal page</a></h4>
+      <hr>
+      <h4>Login</h4>
+      <form action="/checklogin" method="post">
+        <p>Username:</p>
+        <input type="text" name="username" class="form-control" placeholder="Username" required=true>
+        <p>Password:</p>
+        <input type="text" name="password" class="form-control" placeholder="Password" required=true>
+        <p></p>
+        <input type="submit" value="Login" class="btn btn-primary">
+      </form>
+      <p></p>
+    <a class="btn btn-primary" href="/signup">Signup</a><br>
+    <hr>  
+    <input id="import_button" type="button" value="Import Data" class="btn btn-primary">
+  </div>
+</body>
+</html>

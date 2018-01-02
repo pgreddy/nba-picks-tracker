@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.js"></script>
+  <script>
+    var currentChart;
+    $(document).ready(function () {
+      $("#button1").click(function(e) {
+        var x_radio = $('#x_picker').val();
+        var y_radio = $('#y_picker').val();
+        var x_array = x_radio.split(',');
+        var y_array = y_radio.split(',');
+        var x_table = x_array[0];
+        var x_column = x_array[1];
+        var y_table = y_array[0];
+        var y_column = y_array[1];
+        var x_pretty = pretty_column_names[x_column];
+        var y_pretty = pretty_column_names[y_column];
+        var save_to_facebook = document.getElementById("save_to_facebook").checked;
+        var bookmark = document.getElementById("bookmark").checked;
+        var n1 = window.performance.now();
+        $.post("/choose_variables", {
+                x_table: x_table,
+                x_column: x_column,
+                y_table: y_table,
+                y_column: y_column
+            },
+            function (data, status) {
+              var n2 = window.performance.now();
+              var countries = [];
+              var x_values = [];
+              var y_values = [];
+              for (var i = 0; i < data.length; i++) {
+                countries.push(data[i].country);
+                x_values.push(data[i].x);
+                y_values.push(data[i].y);
+              }
+              if (currentChart != undefined) {
+                currentChart.destroy();
+              }
+              corr = getPearsonCorrelation(x_values, y_values);
+              document.getElementById('corr').innerHTML = "Pearson's Correlation Coefficient: "+ corr;
+              document.getElementById('time').innerHTML = "Query took " + (n2-n1) + " milliseconds.";
+              currentChart = draw_charts(data, countries, x_pretty, y_pretty, save_to_facebook, bookmark, corr);
+            }
+        );
+      });
+    });
+    var draw_charts = function (coordinates, countries, pretty_x, pretty_y, save_to_facebook, bookmark, corr) {
+      var canvas = document.createElement('canvas');
+      canvas.id = 'chart_scatter';
+      var ctx = document.getElementById('chart_scatter');
+      var myChart = new Chart(ctx, {
+          type: 'scatter',
+          data: {
+              labels: countries,
+              datasets: [{
+                label: 'Scatter Dataset',
+                data: coordinates,
+                borderWidth: 1,
+                fill: false,
+                pointBackgroundColor:countryColor(countries)
+              }]
+          },
+        options: {
+            bezierCurve : false,
+            animation: {
+              onComplete: function() {
+                  if (save_to_facebook) {
+                      var blob = dataURItoBlob(myChart.toBase64Image());
+                      postCanvasToFacebook(blob);
+                      document.getElementById("save_to_facebook").checked = false;
+                  }
+                  if (bookmark) {
+                      if (typeof "<%=username%>" == 'undefined') {
+                          alert('You must be logged in to bookmark graphs');
+                      } else {
+                          $.post("/bookmark", {
+                                  data: pretty_y + " vs " + pretty_x + ": Pearson Correlation Coefficient is " + corr
+                              },
+                              function (data, status) {
+
+                              }
+                          );
+                      }
+                      document.getElementById("bookmark").checked = false;
+                  }
+              }
+            },
+            scales: {
+                xAxes: [{
+                  type: 'linear',
+                  position: 'bottom',
+                  scaleLabel : {
+                    display: true,
+                    labelString: pretty_x
+                  }
+                }],
+                yAxes: [{
+                  scaleLabel : {
+                    display: true,
+                    labelString: pretty_y
+                  }
+                }]
+            },
+            title: {
+              display: true,
+              text: "Correlation chart of " + pretty_x + ' and ' + pretty_y
+            },
+            showLines: false,
+            tooltips: {
+              callbacks: {
+                label: function(dataitem, data) {
+                  var label = data.labels[dataitem.index];
+                  return label + ': (' + dataitem.xLabel + ', ' + dataitem.yLabel + ')';
+                }
+              }
+            },
+            legend: {
+              display: false
+           }
+          }
+      });
+      return myChart;
+    };
+    function postCanvasToFacebook(blob) {
+      FB.getLoginStatus(function(response) {
+            if (response.status === "connected") {
+              postImageToFacebook(response.authResponse.accessToken, "Canvas to Facebook/Twitter", "image/png", blob, window.location.href);;
+            }
+          });
+        }
+    function postImageToFacebook(token, filename, mimeType, imageData, message) {
+        var fd = new FormData();
+        fd.append("access_token", token);
+        fd.append("source", imageData);
+        fd.append("no_story", true);
+
+        // Upload image to facebook without story(post to feed)
+        $.ajax({
+            url: "https://graph.facebook.com/me/photos?access_token=" + token,
+            type: "POST",
+            data: fd,
+            processData: false,
+            contentType: false,
+            cache: false,
+            success: function (data) {
+                // Get image source url
+                FB.api(
+                    "/" + data.id + "?fields=images",
+                    function (response) {
+                        if (response && !response.error) {
+                            // Create facebook post using image
+                            FB.api(
+                                "/me/feed",
+                                "POST",
+                                {
+                                    "message": "",
+                                    "picture": response.images[0].source,
+                                    "link": window.location.href,
+                                    "privacy": {
+                                        value: 'SELF'
+                                    }
+                                }
+                            );
+                        }
+                    }
+                );
+            },
+            error: function (shr, status, data) {
+                console.log("error " + data + " Status " + shr.status);
+            },
+            complete: function (data) {
+            }
+        });
+    }
+    function dataURItoBlob(dataURI) {
+        var byteString = atob(dataURI.split(',')[1]);
+        var ab = new ArrayBuffer(byteString.length);
+        var ia = new Uint8Array(ab);
+        for (var i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], {type: 'image/png'});
+    }
+    var pretty_column_names = {
+        "gini": "Gini Coefficient",
+        "top_20_inc_share": "Share of Income Owned by Top 20%",
+        "bot_20_inc_share": "Share of Income Owned by Bottom 20%",
+        "num_of_poor": "Number of Poor (millions)",
+        "self_employed_proportion": "Proportion Self Employed",
+        "total_employment": "Total Number Employed",
+        "unemployment_rate": "Unemployment Rate",
+        "salaried_workers": "Wage and Salaried Workers, % of employed",
+        "life_expectancy": "Life Expectancy",
+        "total_population": "Total Population",
+        "urban_population": "Urban Population",
+        "rural_population": "Rural Population",
+        "electricity_access": "Electricity Access Rate",
+        "fertility_rate": "Fertility Rate",
+        "literacy_rate": "Literacy Rate",
+        "cellular_subscriptions": "Cellular Subscriptions",
+        "internet_usage": "Internet Usage Rate",
+        "population_share": "Proportion of Global Population",
+        "tv_audience_share": "Proportion of Global World Cup TV Audience",
+        "gdp_weighted_share": "GDP-weighted Proportion of World Cup Audience",
+        "percent": "Cousin Marriage Rate"
+    };
+    var countryColor = function(countries) {
+      var cols = new Array(0);
+      var i = 0;
+      while (countries.hasOwnProperty(i)) {
+        cols.push(stringToColor(countries[i]));
+        i = i+1;
+      }
+      return cols;
+    }
+    var stringToColor = function(str) {
+      var hash = 0;
+      for (var i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      var color = '#';
+      for (var i = 0; i < 3; i++) {
+        var value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
+      }
+      return color;
+    };
+    /*
+     *  Source: https://memory.psych.mun.ca/tech/js/correlation.shtml
+     */
+    function getPearsonCorrelation(x, y) {
+      var shortestArrayLength = 0;
+
+      if(x.length == y.length) {
+          shortestArrayLength = x.length;
+      } else if(x.length > y.length) {
+          shortestArrayLength = y.length;
+          console.error('x has more items in it, the last ' + (x.length - shortestArrayLength) + ' item(s) will be ignored');
+      } else {
+          shortestArrayLength = x.length;
+          console.error('y has more items in it, the last ' + (y.length - shortestArrayLength) + ' item(s) will be ignored');
+      }
+
+      var xy = [];
+      var x2 = [];
+      var y2 = [];
+
+      for(var i=0; i<shortestArrayLength; i++) {
+          xy.push(x[i] * y[i]);
+          x2.push(x[i] * x[i]);
+          y2.push(y[i] * y[i]);
+      }
+
+      var sum_x = 0;
+      var sum_y = 0;
+      var sum_xy = 0;
+      var sum_x2 = 0;
+      var sum_y2 = 0;
+
+      for(var i=0; i< shortestArrayLength; i++) {
+          sum_x += x[i];
+          sum_y += y[i];
+          sum_xy += xy[i];
+          sum_x2 += x2[i];
+          sum_y2 += y2[i];
+      }
+
+      var step1 = (shortestArrayLength * sum_xy) - (sum_x * sum_y);
+      var step2 = (shortestArrayLength * sum_x2) - (sum_x * sum_x);
+      var step3 = (shortestArrayLength * sum_y2) - (sum_y * sum_y);
+      var step4 = Math.sqrt(step2 * step3);
+      var answer = step1 / step4;
+
+      return answer;
+    };
+   </script>
+</head>
+<body>
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/">Country Comparison</a>
+      </div>
+      <ul class="nav navbar-nav">
+        <li><a href="/scatter">Scatter Plots</a></li>
+        <li><a href="/multiple_select">Feature Comparison Plots</a></li>
+        <li><a href="/home">Personal Page</a></li>
+      </ul>
+    </div>
+  </nav>  <div class="container">
+    <div class="row">
+      <h1 id ="title"> Correlation Plot</h1>
+      <hr>
+    </div>
+    <div class="row">
+        <canvas id="chart_scatter" width="400" height="170"></canvas>
+        <h5 id = "corr"></h5>
+        <h5 id = "time"></h5>
+    </div>
+    <div class="row">
+      Select a x variable:
+      <select id="x_picker">
+        <option value="inequality,gini">Gini Coefficient</option>
+        <option value="inequality,top_20_inc_share">Share of Income Owned by Top 20%</option>
+        <option value="inequality,bot_20_inc_share">Share of Income Owned by Bottom 20%</option>
+        <option value="inequality,num_of_poor">Number of Poor (millions)</option>
+        <option value="jobs,self_employed_proportion">Proportion Self Employed</option>
+        <option value="jobs,total_employment">Total Number Employed</option>
+        <option value="jobs,unemployment_rate">Unemployment Rate</option>
+        <option value="jobs,salaried_workers">Wage and Salaried Workers, % of employed</option>
+        <option value="population,life_expectancy">Life Expectancy</option>
+        <option value="population,total_population">Total Population</option>
+        <option value="population,urban_population">Urban Population</option>
+        <option value="population,rural_population">Rural Population</option>
+        <option value="social_usage,electricity_access">Electricity Access Rate</option>
+        <option value="social_usage,fertility_rate">Fertility Rate</option>
+        <option value="social_usage,literacy_rate">Literacy Rate</option>
+        <option value="social_usage,cellular_subscriptions">Cellular Subscriptions</option>
+        <option value="social_usage,internet_usage">Internet Usage Rate</option>
+        <option value="fifa,population_share">Proportion of Global Population</option>
+        <option value="fifa,tv_audience_share">Proportion of Global World Cup TV Audience</option>
+        <option value="fifa,gdp_weighted_share">GDP-weighted Proportion of World Cup Audience</option>
+        <option value="cousin_marriage,percent">Cousin Marriage Rate</option>
+      </select>
+      Select a y variable:
+      <select id="y_picker">
+        <option value="inequality,gini">Gini Coefficient</option>
+        <option value="inequality,top_20_inc_share">Share of Income Owned by Top 20%</option>
+        <option value="inequality,bot_20_inc_share">Share of Income Owned by Bottom 20%</option>
+        <option value="inequality,num_of_poor">Number of Poor (millions)</option>
+        <option value="jobs,self_employed_proportion">Proportion Self Employed</option>
+        <option value="jobs,total_employment">Total Number Employed</option>
+        <option value="jobs,unemployment_rate">Unemployment Rate</option>
+        <option value="jobs,salaried_workers">Wage and Salaried Workers, % of employed</option>
+        <option value="population,life_expectancy">Life Expectancy</option>
+        <option value="population,total_population">Total Population</option>
+        <option value="population,urban_population">Urban Population</option>
+        <option value="population,rural_population">Rural Population</option>
+        <option value="social_usage,electricity_access">Electricity Access Rate</option>
+        <option value="social_usage,fertility_rate">Fertility Rate</option>
+        <option value="social_usage,literacy_rate">Literacy Rate</option>
+        <option value="social_usage,cellular_subscriptions">Cellular Subscriptions</option>
+        <option value="social_usage,internet_usage">Internet Usage Rate</option>
+        <option value="fifa,population_share">Proportion of Global Population</option>
+        <option value="fifa,tv_audience_share">Proportion of Global World Cup TV Audience</option>
+        <option value="fifa,gdp_weighted_share">GDP-weighted Proportion of World Cup Audience</option>
+        <option value="cousin_marriage,percent">Cousin Marriage Rate</option>
+      </select>
+      <input id="save_to_facebook" type="checkbox" value="save"> Save to Facebook
+      <input id="bookmark" type="checkbox" value="save"> Bookmark<br>
+      <input id="button1" type="button" value="Submit" class="btn btn-primary">
+      <h5><a href="/">Go Home</a></h5>
+      <h5><a href="/home">Go to your Personal Page</a></h5>
+
+    </div>
+    <div class="row">
+      <!--
+        Below we include the Login Button social plugin. This button uses
+        the JavaScript SDK to present a graphical Login button that triggers
+        the FB.login() function when clicked.
+      -->
+      <fb:login-button scope="public_profile,email,publish_actions" onlogin="checkLoginState();">
+      </fb:login-button>
+      <div id="status">
+      </div>
+    </div>
+  </div>
+</body>
+<script>
+// This is called with the results from from FB.getLoginStatus().
+  function statusChangeCallback(response) {
+    // The response object is returned with a status field that lets the
+    // app know the current login status of the person.
+    // Full docs on the response object can be found in the documentation
+    // for FB.getLoginStatus().
+    if (response.status === 'connected') {
+      // Logged into your app and Facebook.
+    } else {
+      // The person is not logged into your app or we are unable to tell.
+      document.getElementById('status').innerHTML = 'Please log ' +
+        'into this app.';
+    }
+  }
+
+  // This function is called when someone finishes with the Login
+  // Button.  See the onlogin handler attached to it in the sample
+  // code below.
+  function checkLoginState() {
+    FB.getLoginStatus(function(response) {
+      statusChangeCallback(response);
+    });
+  }
+
+  window.fbAsyncInit = function() {
+  FB.init({
+    appId      : 347466055727413,
+    cookie     : true,  // enable cookies to allow the server to access
+                        // the session
+    xfbml      : true,  // parse social plugins on this page
+    version    : 'v2.8' // use graph api version 2.8
+  });
+
+  // Now that we've initialized the JavaScript SDK, we call
+  // FB.getLoginStatus().  This function gets the state of the
+  // person visiting this page and can return one of three states to
+  // the callback you provide.  They can be:
+  //
+  // 1. Logged into your app ('connected')
+  // 2. Logged into Facebook, but not your app ('not_authorized')
+  // 3. Not logged into Facebook and can't tell if they are logged into
+  //    your app or not.
+  //
+  // These three cases are handled in the callback function.
+
+  FB.getLoginStatus(function(response) {
+    statusChangeCallback(response);
+  });
+
+  };
+
+  // Load the SDK asynchronously
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "https://connect.facebook.net/en_US/sdk.js";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+</html>
