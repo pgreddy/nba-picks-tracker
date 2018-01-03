@@ -8,15 +8,8 @@
    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <script>
-      // $(document).ready(function () {
-      //      $("#import_button").click(function(e) {
-      //          $.get("/import",function (data, status) {
-      //                  if (data!="Success") {
-      //                    alert(data);
-      //                  }
-      //              });
-      //      });
-      //  });
+      $(document).ready(function () {
+      });
    </script>
 </head>
 <body>
@@ -33,11 +26,28 @@
   </nav>
   <div class="container">
     <div class="row">
-      <h1>NBA Picks App</h1>
-      <h2>Welcome! Make your picks in the picks tab</h2>
+      <h2>Performance</h2>
       <hr>
-      <input id="import_button_1" type="button" value="Import Today's Games" class="btn btn-primary">
-      <input id="import_button_2" type="button" value="Import Yesterday's Results" class="btn btn-primary">
+      <table style="width:100%">
+        <tr>
+          <th>gid</th>
+          <th>uid</th> 
+          <th>SU pick</th>
+          <th>ATS pick</th>
+          <th>SU Correct?</th>
+          <th>ATS Correct?</th>
+        </tr>
+        <% for (var i = 0; i < picks.length; i++) { %>
+          <tr>
+            <td> <%= picks[i].gid %> </td>
+            <td> <%= picks[i].uid %> </td>
+            <td> <%= picks[i].su_selected_winner %> </td>
+            <td> <%= picks[i].ats_selected_winner %> </td>
+            <td> <%= picks[i].su_win %> </td>
+            <td> <%= picks[i].ats_win %> </td>
+          </tr> 
+        <% } %>
+      </table>
     </div>
   </div>
 </body>

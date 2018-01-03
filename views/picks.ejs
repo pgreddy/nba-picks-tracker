@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <title>Login</title>
+   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <script>
+      $(document).ready(function () {
+        console.log(month);  
+      });
+   </script>
+</head>
+<body>
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/">NBA Picks</a>
+      </div>
+      <ul class="nav navbar-nav">
+        <li><a href="/picks">Picks</a></li>
+        <li><a href="/performance">Performance</a></li>
+      </ul>
+    </div>
+  </nav>
+  <div class="container">
+    <div class="row">
+      <h2>Make your picks below for <%=month%>/<%=day%>/<%=year%>:</h2>
+      <hr>
+      <select id="user-picker">
+        <option value="">Select User</option>
+        <option value="Pranav">Pranav</option>
+        <option value="Andy">Andy</option>
+      </select>
+      <table style="width:100%">
+      <tr>
+        <th>Home Team</th>
+        <th>Away Team</th> 
+        <th>Vegas Favorite</th>
+        <th>Vegas Line</th>
+        <th>SU pick</th>
+        <th>ATS pick</th>
+      </tr>
+      <% for (var i = 0; i < games.length; i++) { %>
+        <tr id="<%= games[i].gid %>">
+          <td> <%= games[i].home_team %> </td>
+          <td> <%= games[i].away_team %> </td>
+          <td> <%= games[i].line_winner %> </td>
+          <td> <%= games[i].line_number %> </td>
+          <td>
+            <select id="su-picker">
+              <option value="">Select Team</option>
+              <option value="<%= games[i].home_team %>"><%= games[i].home_team %></option>
+              <option value="<%= games[i].away_team %>"><%= games[i].away_team %></option>
+            </select>
+          </td>
+          <td>
+            <select id="ats-picker">
+              <option value="">Select Team</option>
+              <option value="<%= games[i].home_team %>"><%= games[i].home_team %></option>
+              <option value="<%= games[i].away_team %>"><%= games[i].away_team %></option>
+            </select>
+          </td>
+        </tr> 
+      <% } %>
+    </table>
+      <h4>Check out the <a href="/scatter">correlation plots</a></h4>
+      <h4>Check out the <a href="/multiple_select">feature comparison plots</a></h4>
+      <h4>If you're already logged in, check out your <a href="/home">personal page</a></h4>
+      <hr>
+      <h4>Login</h4>
+      <form action="/checklogin" method="post">
+        <p>Username:</p>
+        <input type="text" name="username" class="form-control" placeholder="Username" required=true>
+        <p>Password:</p>
+        <input type="text" name="password" class="form-control" placeholder="Password" required=true>
+        <p></p>
+        <input type="submit" value="Login" class="btn btn-primary">
+      </form>
+      <p></p>
+    <a class="btn btn-primary" href="/signup">Signup</a><br>
+    <hr>  
+    <input id="import_button" type="button" value="Import Data" class="btn btn-primary">
+  </div>
+</body>
+</html>
